@@ -1,0 +1,42 @@
+version: "3"
+
+services:
+  # docker compose up frontend
+  # http://localhost:3000
+  app:
+    build: ./frontend
+    tty: true
+    stdin_open: true
+    ports:
+      - 3000:3000
+    env_file:
+      - .env
+    volumes:
+      - ${pwd:-.}/frontend/public:/app/public:ro
+      - ${pwd:-.}/frontend/src:/app/src:ro
+
+  # docker compose up build
+  build:
+    build: ./frontend
+    volumes:
+      - ${pwd:-.}/frontend/build:/app/build
+      - ${pwd:-.}/frontend/public:/app/public:ro
+      - ${pwd:-.}/frontend/src:/app/src:ro
+    command: npm run build
+
+  # docker compose up deploy
+  deploy:
+    build: ./frontend
+    volumes:
+      - ${pwd:-.}/frontend/build:/app/build:ro
+      - ~/.aws:/root/.aws:ro
+    command: >
+      aws s3 sync build/ s3://$S3_BUCKET --delete
+
+  # docker compose up invalidate
+  invalidate:
+    build: ./frontend
+    volumes:
+      - ~/.aws:/root/.aws:ro
+    command: >
+      aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths /index.html
